@@ -28,6 +28,9 @@ class Recipe extends Model
         'image_path',
         'source_input',
         'is_saved',
+        'share_token',
+        'rating',
+        'user_notes',
     ];
 
     protected $casts = [

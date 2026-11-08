@@ -24,6 +24,18 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        // Demo account counts as verified (email_verified_at is not mass-assignable)
+        if (!$user->email_verified_at) {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
+        // Sample pantry items so the expiry reminder has something to show
+        if ($user->pantryItems()->count() === 0) {
+            foreach ([['Bayam', '1 ikat', 1], ['Tahu putih', '4 potong', 2], ['Telur ayam', '6 butir', 10], ['Wortel', '3 buah', 6]] as [$name, $qty, $days]) {
+                $user->pantryItems()->create(['name' => $name, 'quantity' => $qty, 'expires_at' => now()->addDays($days)->toDateString()]);
+            }
+        }
+
         if ($user->recipes()->count() === 0) {
             // 1. Sample FCAI Recipe
             Recipe::create([

@@ -3,15 +3,14 @@
 @section('title', 'Beranda - FoodCycle')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8" 
-     x-data="dashboardUI()">
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8" x-data="dashboardUI()">
 
     <!-- Loading State Overlay -->
     <div x-show="isGenerating" x-cloak 
          class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/70 backdrop-blur-xs text-white transition-opacity duration-200">
         <div class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl p-6 sm:p-8 shadow-xl max-w-sm w-full mx-4 text-center border border-slate-100 dark:border-slate-800">
             <div class="w-12 h-12 relative mx-auto mb-4">
-                <div class="w-12 h-12 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <div class="w-12 h-12 border-3 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
                 <img src="{{ asset('images/mascot.png') }}" class="w-6 h-6 absolute inset-0 m-auto" alt="FoodCycle">
             </div>
             <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1" x-text="loadingTitle"></h3>
@@ -19,165 +18,121 @@
         </div>
     </div>
 
-    <!-- Hero Card: Branded Royal Blue with Warm Accents -->
-    <div class="bg-gradient-to-br from-[#0B50B5] via-[#1055BE] to-[#083882] rounded-3xl p-6 sm:p-8 shadow-xl shadow-blue-900/15 text-white mb-8 overflow-hidden relative border border-blue-400/20">
-        <!-- Ambient decorative background glows -->
-        <div class="absolute -top-24 -right-24 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-24 -left-24 w-72 h-72 bg-amber-400/15 rounded-full blur-2xl pointer-events-none"></div>
+    @php
+        $hour = (int) now()->format('G');
+        $greeting = $hour < 11 ? 'Selamat pagi' : ($hour < 15 ? 'Selamat siang' : ($hour < 18 ? 'Selamat sore' : 'Selamat malam'));
+        $kpis = [
+            ['Total resep', $stats['total_generated'], 'semua waktu', 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'],
+            ['Resep bulan ini', $monthStats['recipes'], $monthStats['month'], 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'],
+            ['Bahan dimanfaatkan', $monthStats['ingredients_used'], 'dari resep bahan sisa', 'M5 13l4 4L19 7'],
+            ['Rata-rata biaya', 'Rp ' . number_format($monthStats['avg_cost'], 0, ',', '.'), 'per resep bulan ini', 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
+        ];
+        $modes = [
+            'FCAI' => ['Bahan & Peralatan', 'Masak dari bahan yang ada di dapur.', 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'],
+            'FCBB' => ['Sesuai Anggaran', 'Menu lezat dengan batas belanja.', 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'],
+            'FBPB' => ['Dari Foto', 'Resep recook dari foto makanan.', 'M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z'],
+        ];
+    @endphp
 
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
-            <div class="max-w-2xl">
-                <div class="flex items-center gap-2 mb-2.5">
-                    <span class="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/25 shadow-2xs">
-                        Asisten Memasak Cerdas
-                    </span>
-                </div>
-                <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    Selamat Datang, {{ $user->name }}!
-                </h1>
-                <p class="mt-2 text-xs sm:text-sm text-blue-100/90 leading-relaxed max-w-xl">
-                    Pilih salah satu metode di bawah untuk merancang resep sehat dari ketersediaan bahan dapur, batasan anggaran belanja, atau foto hidangan masakan Anda.
-                </p>
-
-                <!-- Current User Preferences -->
-                <div class="mt-5 flex flex-wrap items-center gap-2 text-xs">
-                    <span class="text-blue-200/80 font-medium">Preferensi Diet:</span>
-                    @forelse($user->dietary_preferences ?? ['Umum'] as $diet)
-                        <span class="px-2.5 py-0.5 rounded-lg bg-white/15 backdrop-blur-md text-white font-medium border border-white/20">{{ $diet }}</span>
-                    @empty
-                        <span class="px-2.5 py-0.5 rounded-lg bg-white/15 backdrop-blur-md text-white">Umum</span>
-                    @endforelse
-
-                    <span class="text-blue-300/40 mx-1">•</span>
-                    <button @click="$store.app.showPrefsModal = true" onclick="window.openPreferences && window.openPreferences()" type="button" class="text-amber-300 hover:text-amber-200 font-bold underline decoration-amber-300/60 cursor-pointer transition">
-                        Ubah Preferensi
+    <!-- Greeting -->
+    <section class="relative mb-6 overflow-hidden rounded-2xl bg-brand-700 px-6 py-7 text-white shadow-raised sm:px-8">
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.18),transparent_55%)]"></div>
+        <div class="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-tomato-500/25 blur-3xl"></div>
+        <div class="relative flex items-center justify-between gap-6">
+            <div class="min-w-0">
+                <p class="text-sm font-medium text-brand-100">{{ $greeting }},</p>
+                <h1 class="mt-0.5 truncate text-2xl font-bold tracking-tight sm:text-3xl">{{ $user->name }}</h1>
+                <p class="mt-2 max-w-xl text-sm leading-relaxed text-brand-100/90">Mau masak apa hari ini? Pilih cara membuat resep di bawah, atau masak dari bahan yang hampir kedaluwarsa.</p>
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                    @foreach($user->dietary_preferences ?: ['Umum'] as $diet)
+                        <span class="rounded-md bg-white/15 px-2 py-0.5 font-medium ring-1 ring-inset ring-white/20">{{ $diet }}</span>
+                    @endforeach
+                    <button type="button" @click="$store.app.showPrefsModal = true" onclick="window.openPreferences && window.openPreferences()"
+                            class="rounded-md px-2 py-0.5 font-semibold text-white/90 underline decoration-white/40 underline-offset-2 hover:decoration-white cursor-pointer">
+                        Ubah preferensi
                     </button>
                 </div>
             </div>
+            <img src="{{ asset('images/mascot.png') }}" alt="" class="hidden h-24 w-auto shrink-0 drop-shadow-xl sm:block">
+        </div>
+    </section>
 
-            <!-- Stats & Brand Mascot Badge -->
-            <div class="flex items-center gap-5 shrink-0">
-                <div class="hidden sm:block shrink-0 relative">
-                    <img src="{{ asset('images/mascot.png') }}" alt="FoodCycle Mascot" class="h-24 w-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.3)] hover:scale-105 transition-transform duration-300">
+    <!-- KPIs -->
+    <dl class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        @foreach($kpis as [$label, $value, $hint, $icon])
+            <div class="card p-4 sm:p-5">
+                <div class="flex items-center justify-between">
+                    <dt class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ $label }}</dt>
+                    <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
                 </div>
-                <div class="grid grid-cols-3 gap-2.5">
-                    <div class="bg-white/15 backdrop-blur-md rounded-2xl p-3.5 border border-white/20 text-center min-w-[90px] shadow-sm">
-                        <div class="text-xl sm:text-2xl font-black text-white">{{ $stats['total_generated'] }}</div>
-                        <div class="text-[10px] text-blue-100 font-semibold mt-0.5">Total Resep</div>
-                    </div>
-                    <div class="bg-white/15 backdrop-blur-md rounded-2xl p-3.5 border border-white/20 text-center min-w-[90px] shadow-sm">
-                        <div class="text-xl sm:text-2xl font-black text-white">{{ $stats['total_saved'] }}</div>
-                        <div class="text-[10px] text-blue-100 font-semibold mt-0.5">Tersimpan</div>
-                    </div>
-                    <div class="bg-white/15 backdrop-blur-md rounded-2xl p-3.5 border border-white/20 text-center min-w-[90px] shadow-sm">
-                        <div class="text-xl sm:text-2xl font-black text-white">{{ $stats['total_fcbb'] }}</div>
-                        <div class="text-[10px] text-blue-100 font-semibold mt-0.5">Menu Hemat</div>
+                <dd class="mt-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">{{ $value }}</dd>
+                <p class="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">{{ $hint }}</p>
+            </div>
+        @endforeach
+    </dl>
+
+    <!-- Expiry reminder -->
+    @if($expiringItems->isNotEmpty())
+        <section class="mb-8 flex flex-col gap-4 rounded-2xl bg-amber-50 p-5 ring-1 ring-inset ring-amber-200 sm:flex-row sm:items-center sm:justify-between dark:bg-amber-950/30 dark:ring-amber-900/70">
+            <div class="flex items-start gap-3">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+                <div>
+                    <h2 class="text-sm font-semibold text-amber-950 dark:text-amber-100">Segera masak sebelum terbuang</h2>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                        @foreach($expiringItems as $item)
+                            <span class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2 py-1 text-xs font-medium text-slate-800 ring-1 ring-inset ring-amber-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-amber-900">
+                                {{ $item->name }}
+                                <span class="badge px-1.5 py-0 {{ $item->expiry_badge_classes }}">{{ $item->expiry_label }}</span>
+                            </span>
+                        @endforeach
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+            <div class="flex shrink-0 gap-2">
+                <a href="{{ route('pantry.index') }}" class="btn btn-secondary btn-sm">Kelola stok</a>
+                <form method="POST" action="{{ route('assistant.fcai') }}" x-data="{ busy: false }" @submit="busy = true">
+                    @csrf
+                    <input type="hidden" name="ingredients" value="{{ $expiringItems->pluck('name')->join(', ') }}">
+                    <input type="hidden" name="notes" value="Prioritaskan bahan dari stok dapur yang hampir kedaluwarsa agar tidak terbuang.">
+                    <button type="submit" class="btn btn-accent btn-sm" :disabled="busy">
+                        <span x-text="busy ? 'Meracik resep...' : 'Masak sekarang'"></span>
+                    </button>
+                </form>
+            </div>
+        </section>
+    @endif
 
-    <!-- 3 Action Cards (Mode Selector) -->
-    <div id="ai-workspace" class="mb-6">
-        <div class="flex items-center justify-between mb-4">
+    <!-- AI workspace: mode picker -->
+    <section id="ai-workspace" class="scroll-mt-20">
+        <div class="mb-4 flex items-end justify-between gap-4">
             <div>
-                <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>3 Mode Memasak Cerdas</span>
-                </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400">Pilih salah satu metode untuk mulai meracik resep masakan</p>
+                <h2 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Buat resep baru</h2>
+                <p class="section-subtitle">Pilih cara AI menyusun resep untuk Anda.</p>
             </div>
+            @if($expiringItems->isEmpty())
+                <a href="{{ route('pantry.index') }}" class="hidden text-sm font-semibold text-brand-600 hover:text-brand-800 sm:inline dark:text-brand-400">Catat stok dapur →</a>
+            @endif
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <!-- Mode 1: Bahan & Alat -->
-            <div @click="selectTab('FCAI')" @keydown.enter.prevent="selectTab('FCAI')" @keydown.space.prevent="selectTab('FCAI')" role="button" tabindex="0" :aria-pressed="activeTab === 'FCAI'"
-                 :class="activeTab === 'FCAI' 
-                    ? 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/30 dark:ring-blue-500/30 bg-blue-50/20 dark:bg-slate-800/80 shadow-sm' 
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 shadow-2xs'"
-                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                <div>
-                    <div class="mb-3.5">
-                        <div class="w-11 h-11 rounded-xl flex items-center justify-center transition shadow-2xs bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                        </div>
-                        <span class="sr-only">FCAI</span>
-                    </div>
-                    <h3 class="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
-                        Bahan & Peralatan
-                    </h3>
-                    <p class="text-xs mt-1.5 leading-relaxed text-slate-500 dark:text-slate-400">
-                        Rekomendasi resep berdasarkan bahan makanan yang tersedia dan alat dapur yang Anda miliki.
-                    </p>
-                </div>
-                <div class="mt-5 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
-                    <span :class="activeTab === 'FCAI' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'">Pilih Mode</span>
-                    <span x-show="activeTab === 'FCAI'" class="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold">
-                        <span class="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400"></span>
-                        Aktif
+        <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3" role="tablist" aria-label="Mode pembuatan resep">
+            @foreach($modes as $key => [$title, $desc, $icon])
+                <button type="button" role="tab" :aria-selected="activeTab === '{{ $key }}'" @click="selectTab('{{ $key }}')"
+                        :class="activeTab === '{{ $key }}' ? 'border-brand-500 ring-4 ring-brand-500/10 bg-white dark:bg-slate-900 dark:border-brand-500' : 'border-slate-200 bg-white/60 hover:border-slate-300 hover:bg-white dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-slate-700'"
+                        class="group flex items-center gap-3.5 rounded-2xl border p-4 text-left transition cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/30">
+                    <span :class="activeTab === '{{ $key }}' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:text-slate-700 dark:bg-slate-800 dark:text-slate-400'"
+                          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
                     </span>
-                </div>
-            </div>
-
-            <!-- Mode 2: Sesuai Anggaran -->
-            <div @click="selectTab('FCBB')" @keydown.enter.prevent="selectTab('FCBB')" @keydown.space.prevent="selectTab('FCBB')" role="button" tabindex="0" :aria-pressed="activeTab === 'FCBB'"
-                 :class="activeTab === 'FCBB' 
-                    ? 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/30 dark:ring-blue-500/30 bg-blue-50/20 dark:bg-slate-800/80 shadow-sm' 
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 shadow-2xs'"
-                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                <div>
-                    <div class="mb-3.5">
-                        <div class="w-11 h-11 rounded-xl flex items-center justify-center transition shadow-2xs bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                        </div>
-                        <span class="sr-only">FCBB</span>
-                    </div>
-                    <h3 class="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
-                        Sesuai Anggaran
-                    </h3>
-                    <p class="text-xs mt-1.5 leading-relaxed text-slate-500 dark:text-slate-400">
-                        Rancang menu makan lezat dengan batasan total biaya belanja dalam Rupiah (IDR).
-                    </p>
-                </div>
-                <div class="mt-5 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
-                    <span :class="activeTab === 'FCBB' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'">Pilih Mode</span>
-                    <span x-show="activeTab === 'FCBB'" class="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold">
-                        <span class="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400"></span>
-                        Aktif
+                    <span class="min-w-0">
+                        <span class="block text-sm font-semibold text-slate-900 dark:text-white">{{ $title }}</span>
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">{{ $desc }}</span>
                     </span>
-                </div>
-            </div>
-
-            <!-- Mode 3: Identifikasi Foto -->
-            <div @click="selectTab('FBPB')" @keydown.enter.prevent="selectTab('FBPB')" @keydown.space.prevent="selectTab('FBPB')" role="button" tabindex="0" :aria-pressed="activeTab === 'FBPB'"
-                 :class="activeTab === 'FBPB' 
-                    ? 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/30 dark:ring-blue-500/30 bg-blue-50/20 dark:bg-slate-800/80 shadow-sm' 
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 shadow-2xs'"
-                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                <div>
-                    <div class="mb-3.5">
-                        <div class="w-11 h-11 rounded-xl flex items-center justify-center transition shadow-2xs bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        </div>
-                        <span class="sr-only">FBPB</span>
-                    </div>
-                    <h3 class="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
-                        Identifikasi Foto
-                    </h3>
-                    <p class="text-xs mt-1.5 leading-relaxed text-slate-500 dark:text-slate-400">
-                        Unggah foto hidangan masakan untuk mengenali bahan dan langkah pembuatannya kembali.
-                    </p>
-                </div>
-                <div class="mt-5 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
-                    <span :class="activeTab === 'FBPB' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'">Pilih Mode</span>
-                    <span x-show="activeTab === 'FBPB'" class="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold">
-                        <span class="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400"></span>
-                        Aktif
-                    </span>
-                </div>
-            </div>
+                </button>
+            @endforeach
         </div>
-    </div>
+    </section>
 
     <!-- Dynamic Form Panel -->
     <div id="mode-form" class="mb-12 scroll-mt-20">
@@ -187,13 +142,13 @@
              x-transition:enter="transition ease-out duration-150" 
              x-transition:enter-start="opacity-0 translate-y-1" 
              x-transition:enter-end="opacity-100 translate-y-0"
-             class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden transition-colors duration-150">
+             class="card overflow-hidden">
 
             <div class="p-6 sm:p-8">
-                <div class="pb-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div class="pb-5 border-b border-slate-100 dark:border-slate-800">
                     <div>
-                        <h3 class="text-lg font-black text-slate-900 dark:text-white">Rekomendasi dari Bahan Dapur</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Masukkan bahan yang Anda miliki dan pilih peralatan masak yang tersedia.</p>
+                        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Rekomendasi dari Bahan Dapur</h3>
+                        <p class="section-subtitle">Masukkan bahan yang Anda miliki dan pilih peralatan masak yang tersedia.</p>
                     </div>
                 </div>
 
@@ -204,35 +159,35 @@
                         <!-- Left Columns: Ingredients -->
                         <div class="lg:col-span-2 space-y-4">
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                                <label class="label">
                                     Bahan yang Tersedia <span class="text-rose-500">*</span>
                                 </label>
                                 <textarea name="ingredients" x-model="fcaiIngredients" required rows="3"
                                     placeholder="Contoh: 2 butir telur, tempe, wortel, bawang putih, kecap manis"
-                                    class="w-full rounded-2xl border border-slate-200 dark:border-slate-700 p-3.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition bg-slate-50/50 dark:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800"></textarea>
+                                    class="input"></textarea>
                                 
                                 <!-- Quick-add Chips -->
                                 <div class="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
-                                    <span class="text-slate-400 dark:text-slate-500 font-medium">Pilih cepat:</span>
+                                    <span class="mr-1 text-slate-400 dark:text-slate-500">Pilih cepat:</span>
                                     <template x-for="chip in ['Telur', 'Tahu', 'Tempe', 'Ayam', 'Kangkung', 'Bawang', 'Wortel', 'Nasi']">
                                         <button type="button" @click="addIngredient(chip)" 
-                                            class="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-700 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-2xs">
+                                            class="chip">
                                             + <span x-text="chip"></span>
                                         </button>
                                     </template>
                                 </div>
                                 @error('ingredients')
-                                    <p class="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                    <p class="input-error">{{ $message }}</p>
                                 @enderror
                             </div>
 
                             <!-- Cooking Tools Selector -->
                             <div>
                                 <div class="flex items-center justify-between mb-2">
-                                    <label class="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    <label class="label !mb-0">
                                         Peralatan Masak yang Digunakan
                                     </label>
-                                    <button type="button" @click="selectAllTools()" class="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer">
+                                    <button type="button" @click="selectAllTools()" class="text-xs text-brand-600 dark:text-brand-400 font-bold hover:underline cursor-pointer">
                                         Pilih Semua
                                     </button>
                                 </div>
@@ -243,11 +198,11 @@
                                         $userTools = $user->available_tools ?? ['Kompor Gas/Listrik', 'Wajan / Kuali'];
                                     @endphp
                                     @foreach($defaultTools as $tool)
-                                    <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60 hover:bg-slate-100/60 dark:hover:bg-slate-700/60 cursor-pointer text-xs transition select-none">
+                                    <label class="flex cursor-pointer select-none items-center gap-2.5 rounded-xl border border-slate-200 p-3 text-sm transition hover:border-slate-300 has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50/60 dark:border-slate-800 dark:hover:border-slate-700 dark:has-[:checked]:border-brand-600 dark:has-[:checked]:bg-brand-950/40">
                                         <input type="checkbox" name="tools[]" value="{{ $tool }}" 
                                             {{ in_array($tool, $userTools) ? 'checked' : '' }}
-                                            class="fcai-tool-check rounded-md text-blue-600 focus:ring-blue-500">
-                                        <span class="text-slate-800 dark:text-slate-200 font-medium">{{ $tool }}</span>
+                                            class="fcai-tool-check checkbox">
+                                        <span class="font-medium text-slate-700 dark:text-slate-200">{{ $tool }}</span>
                                     </label>
                                     @endforeach
                                 </div>
@@ -257,8 +212,8 @@
                         <!-- Right Column: Settings -->
                         <div class="space-y-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800 lg:pl-6">
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">Jumlah Porsi</label>
-                                <select name="servings" class="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs sm:text-sm text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none">
+                                <label class="label">Jumlah Porsi</label>
+                                <select name="servings" class="input">
                                     <option value="1 porsi">1 porsi</option>
                                     <option value="2 porsi" selected>2 porsi</option>
                                     <option value="3-4 porsi">3 - 4 porsi</option>
@@ -267,8 +222,8 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">Tingkat Kesulitan</label>
-                                <select name="difficulty" class="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs sm:text-sm text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none">
+                                <label class="label">Tingkat Kesulitan</label>
+                                <select name="difficulty" class="input">
                                     <option value="Sangat Mudah & Cepat" selected>Mudah & Cepat</option>
                                     <option value="Sedang">Sedang</option>
                                     <option value="Kreatif">Kreatif</option>
@@ -276,14 +231,14 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">Catatan Khusus (Opsional)</label>
+                                <label class="label">Catatan Khusus (Opsional)</label>
                                 <input type="text" name="notes" placeholder="Contoh: Tanpa santan, rasa pedas manis" 
-                                    class="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs sm:text-sm text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none">
+                                    class="input">
                             </div>
 
                             <div class="pt-2">
                                 <button type="submit" 
-                                    class="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                    class="btn btn-primary btn-lg w-full">
                                     <span>Buat Resep dengan AI</span>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                                 </button>
@@ -299,13 +254,13 @@
              x-transition:enter="transition ease-out duration-150" 
              x-transition:enter-start="opacity-0 translate-y-1" 
              x-transition:enter-end="opacity-100 translate-y-0"
-             class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden transition-colors duration-150">
+             class="card overflow-hidden">
 
             <div class="p-6 sm:p-8">
-                <div class="pb-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div class="pb-5 border-b border-slate-100 dark:border-slate-800">
                     <div>
-                        <h3 class="text-lg font-black text-slate-900 dark:text-white">Perencanaan Menu Sesuai Anggaran</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tentukan batas nominal anggaran belanja dalam Rupiah (IDR).</p>
+                        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Perencanaan Menu Sesuai Anggaran</h3>
+                        <p class="section-subtitle">Tentukan batas nominal anggaran belanja dalam Rupiah (IDR).</p>
                     </div>
                 </div>
 
@@ -316,39 +271,39 @@
                         <!-- Left 2 Cols: Budget & Nominal Chips -->
                         <div class="lg:col-span-2 space-y-4">
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                                <label class="label">
                                     Batas Anggaran Belanja <span class="text-rose-500">*</span>
                                 </label>
                                 <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center font-bold text-slate-500 dark:text-slate-400 text-base">Rp</span>
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">Rp</span>
                                     <input type="number" name="budget" x-model.number="fcbbBudget" required min="5000" max="1000000" step="1000"
-                                        class="w-full rounded-2xl border border-slate-200 dark:border-slate-700 pl-12 pr-4 py-3.5 text-base font-bold text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition">
+                                        class="input pl-12 py-3 text-base font-semibold">
                                 </div>
                                 
                                 <!-- Quick Amount Buttons -->
                                 <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
-                                    <span class="text-slate-400 dark:text-slate-500 font-medium">Pilih nominal:</span>
+                                    <span class="mr-1 text-slate-400 dark:text-slate-500">Pilih cepat:</span>
                                     <template x-for="nominal in [15000, 25000, 50000, 100000]">
                                         <button type="button" @click="fcbbBudget = nominal" 
-                                            :class="fcbbBudget === nominal ? 'bg-blue-600 text-white font-bold border-blue-600 shadow-xs' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold'"
-                                            class="px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-2xs">
+                                            :class="fcbbBudget === nominal && '!border-brand-300 !bg-brand-50 !text-brand-700 dark:!bg-brand-950/60 dark:!text-brand-300'"
+                                            class="chip">
                                             Rp <span x-text="nominal.toLocaleString('id-ID')"></span>
                                         </button>
                                     </template>
                                 </div>
                                 @error('budget')
-                                    <p class="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                    <p class="input-error">{{ $message }}</p>
                                 @enderror
                             </div>
 
                             <!-- Meal Type Radio Selector -->
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-2">Waktu Makan</label>
+                                <label class="label">Waktu Makan</label>
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     @foreach(['Sarapan', 'Makan Siang', 'Makan Malam', 'Menu Harian'] as $meal)
-                                    <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60 hover:bg-slate-100/60 dark:hover:bg-slate-700/60 cursor-pointer text-xs transition select-none">
-                                        <input type="radio" name="meal_type" value="{{ $meal }}" {{ $loop->index === 1 ? 'checked' : '' }} class="text-blue-600 focus:ring-blue-500">
-                                        <span class="text-slate-800 dark:text-slate-200 font-semibold">{{ $meal }}</span>
+                                    <label class="flex cursor-pointer select-none items-center gap-2.5 rounded-xl border border-slate-200 p-3 text-sm transition hover:border-slate-300 has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50/60 dark:border-slate-800 dark:hover:border-slate-700 dark:has-[:checked]:border-brand-600 dark:has-[:checked]:bg-brand-950/40">
+                                        <input type="radio" name="meal_type" value="{{ $meal }}" {{ $loop->index === 1 ? 'checked' : '' }} class="h-4 w-4 border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800">
+                                        <span class="font-medium text-slate-700 dark:text-slate-200">{{ $meal }}</span>
                                     </label>
                                     @endforeach
                                 </div>
@@ -358,26 +313,26 @@
                         <!-- Right Col: Portion Stepper & Action -->
                         <div class="space-y-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800 lg:pl-6">
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">Jumlah Porsi</label>
+                                <label class="label">Jumlah Porsi</label>
                                 <div class="flex items-center gap-3">
                                     <button type="button" @click="if (portionCount > 1) portionCount--" aria-label="Kurangi porsi"
-                                        class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black flex items-center justify-center transition cursor-pointer shadow-2xs">-</button>
-                                    <span class="font-extrabold text-sm text-slate-900 dark:text-white w-16 text-center" x-text="portionCount + ' Porsi'" aria-live="polite"></span>
+                                        class="btn btn-secondary h-10 w-10 !p-0 text-lg">-</button>
+                                    <span class="w-20 text-center text-sm font-semibold text-slate-900 dark:text-white" x-text="portionCount + ' Porsi'" aria-live="polite"></span>
                                     <input type="hidden" name="servings" :value="portionCount + ' porsi'">
                                     <button type="button" @click="if (portionCount < 10) portionCount++" aria-label="Tambah porsi"
-                                        class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black flex items-center justify-center transition cursor-pointer shadow-2xs">+</button>
+                                        class="btn btn-secondary h-10 w-10 !p-0 text-lg">+</button>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">Catatan Khusus (Opsional)</label>
+                                <label class="label">Catatan Khusus (Opsional)</label>
                                 <input type="text" name="notes" placeholder="Contoh: Menu tinggi protein, praktis" 
-                                    class="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs sm:text-sm text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none">
+                                    class="input">
                             </div>
 
                             <div class="pt-2">
                                 <button type="submit" 
-                                    class="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                    class="btn btn-primary btn-lg w-full">
                                     <span>Rancang Menu Hemat AI</span>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                                 </button>
@@ -393,13 +348,13 @@
              x-transition:enter="transition ease-out duration-150" 
              x-transition:enter-start="opacity-0 translate-y-1" 
              x-transition:enter-end="opacity-100 translate-y-0"
-             class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden transition-colors duration-150">
+             class="card overflow-hidden">
 
             <div class="p-6 sm:p-8">
-                <div class="pb-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div class="pb-5 border-b border-slate-100 dark:border-slate-800">
                     <div>
-                        <h3 class="text-lg font-black text-slate-900 dark:text-white">Identifikasi Resep dari Foto</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Unggah foto hidangan masakan untuk dianalisis dan disusun panduan resepnya.</p>
+                        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Identifikasi Resep dari Foto</h3>
+                        <p class="section-subtitle">Unggah foto hidangan masakan untuk dianalisis dan disusun panduan resepnya.</p>
                     </div>
                 </div>
 
@@ -409,12 +364,12 @@
                         
                         <!-- Upload Dropzone -->
                         <div class="lg:col-span-2 space-y-4">
-                            <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                            <label class="label">
                                 Foto Hidangan Masakan <span class="text-rose-500">*</span>
                             </label>
                             
                             <!-- Dropzone Area -->
-                            <div class="relative rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 p-8 text-center transition bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/70">
+                            <div class="relative rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-10 text-center transition hover:border-brand-400 hover:bg-brand-50/40 dark:border-slate-700 dark:bg-slate-800/40 dark:hover:border-brand-500 dark:hover:bg-brand-950/30">
                                 <input type="file" name="photo" x-ref="fileInput" @change="previewImage($event)" required accept="image/jpeg,image/png,image/jpg,image/webp"
                                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                                 
@@ -424,7 +379,7 @@
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                     </div>
                                     <div class="text-xs text-slate-700 dark:text-slate-300 font-semibold">
-                                        <span class="text-blue-600 dark:text-blue-400 font-bold hover:underline">Klik untuk mengunggah</span> atau seret foto ke sini
+                                        <span class="text-brand-600 dark:text-brand-400 font-bold hover:underline">Klik untuk mengunggah</span> atau seret foto ke sini
                                     </div>
                                     <p class="text-[11px] text-slate-400 dark:text-slate-500">Format file: JPG, PNG, atau WEBP (maks. 8MB)</p>
                                 </div>
@@ -432,29 +387,30 @@
                                 <!-- State: Image Preview -->
                                 <div x-show="photoPreview" x-cloak class="relative inline-block">
                                     <img :src="photoPreview" alt="Pratinjau" class="max-h-56 rounded-xl object-contain shadow-md mx-auto border border-slate-200 dark:border-slate-700">
+                                    <p x-show="photoInfo" x-text="photoInfo" class="mt-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"></p>
                                     <button type="button" @click.stop="removePhoto()" 
-                                        class="mt-3 px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition shadow-xs cursor-pointer">
+                                        class="btn btn-secondary btn-sm relative z-10 mt-3">
                                         Ganti Foto
                                     </button>
                                 </div>
                             </div>
 
                             @error('photo')
-                                <p class="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                <p class="input-error">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <!-- Right Col: Notes & Action -->
                         <div class="space-y-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800 lg:pl-6">
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">Catatan Tambahan (Opsional)</label>
+                                <label class="label">Catatan Tambahan (Opsional)</label>
                                 <textarea name="notes" rows="4" placeholder="Contoh: Tolong buat versi hemat untuk 2 porsi rumahan" 
-                                    class="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs sm:text-sm text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none"></textarea>
+                                    class="input"></textarea>
                             </div>
 
                             <div class="pt-2">
                                 <button type="submit" 
-                                    class="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                    class="btn btn-primary btn-lg w-full">
                                     <span>Analisis & Buat Resep</span>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                                 </button>
@@ -466,60 +422,25 @@
         </div>
     </div>
 
-    <!-- 4. Recent Recipes Section -->
-    <div>
-        <div class="flex items-center justify-between mb-4">
+    <!-- Recent recipes -->
+    <section>
+        <div class="mb-4 flex items-end justify-between gap-4">
             <div>
-                <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">Riwayat Resep Terakhir</h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400">Resep yang baru saja Anda hasilkan</p>
+                <h2 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Resep terakhir</h2>
+                <p class="section-subtitle">Resep yang baru saja Anda buat.</p>
             </div>
-            <a href="{{ route('recipes.saved') }}" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline">
-                Lihat Resep Tersimpan &rarr;
-            </a>
+            <a href="{{ route('recipes.index') }}" class="text-sm font-semibold text-brand-600 hover:text-brand-800 dark:text-brand-400">Lihat semua &rarr;</a>
         </div>
-
         @if($recentRecipes->count() > 0)
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach($recentRecipes as $recipe)
-                <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all flex flex-col justify-between group">
-                    <div>
-                        <div class="flex items-center justify-between gap-2 mb-2">
-                            <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md 
-                                {{ $recipe->type === 'fcai' ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300' : ($recipe->type === 'fcbb' ? 'bg-orange-100 dark:bg-orange-950/80 text-orange-800 dark:text-orange-300' : 'bg-violet-100 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300') }}">
-                                {{ $recipe->type_label }}
-                            </span>
-                            <span class="text-[11px] text-slate-400 dark:text-slate-500">
-                                {{ $recipe->created_at->translatedFormat('d M Y') }}
-                            </span>
-                        </div>
-
-                        <h4 class="font-extrabold text-slate-900 dark:text-white text-sm line-clamp-1 mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {{ $recipe->title }}
-                        </h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                            {{ $recipe->description }}
-                        </p>
-                    </div>
-
-                    <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span class="text-xs font-extrabold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-                            {{ $recipe->formatted_cost }}
-                        </span>
-                        <a href="{{ route('recipes.show', $recipe->id) }}" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                            <span>Lihat Detail</span>
-                            <span>&rarr;</span>
-                        </a>
-                    </div>
-                </div>
+                    <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
         @else
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center max-w-md mx-auto shadow-2xs">
-                <img src="{{ asset('images/mascot.png') }}" class="w-12 h-auto mx-auto mb-2 opacity-80" alt="FoodCycle">
-                <p class="text-xs text-slate-500 dark:text-slate-400">Belum ada resep yang dibuat. Pilih salah satu metode di atas untuk memulai.</p>
-            </div>
+            <x-empty-state title="Belum ada resep" text="Pilih salah satu cara di atas untuk membuat resep pertama Anda." />
         @endif
-    </div>
+    </section>
 </div>
 
 @push('scripts')
@@ -557,19 +478,58 @@
                 checkboxes.forEach(cb => cb.checked = true);
             },
 
-            previewImage(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this.photoPreview = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
+            photoInfo: '',
+
+            async previewImage(event) {
+                const input = event.target;
+                let file = input.files[0];
+                if (!file) return;
+
+                // Shrink big phone photos before upload: faster upload, faster AI, less quota.
+                // Falls back to the original file if the browser cannot decode it.
+                try {
+                    const smaller = await this.compressImage(file, 1600, 0.85);
+                    if (smaller && smaller.size < file.size) {
+                        const dt = new DataTransfer();
+                        dt.items.add(smaller);
+                        input.files = dt.files;
+                        this.photoInfo = 'Foto dikompres: ' + (file.size / 1048576).toFixed(1) + ' MB → ' + (smaller.size / 1048576).toFixed(1) + ' MB';
+                        file = smaller;
+                    } else {
+                        this.photoInfo = '';
+                    }
+                } catch (e) {
+                    this.photoInfo = '';
                 }
+
+                const reader = new FileReader();
+                reader.onload = (e) => { this.photoPreview = e.target.result; };
+                reader.readAsDataURL(file);
+            },
+
+            compressImage(file, maxSide, quality) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    const url = URL.createObjectURL(file);
+                    img.onload = () => {
+                        URL.revokeObjectURL(url);
+                        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(img.width * scale);
+                        canvas.height = Math.round(img.height * scale);
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob(blob => blob
+                            ? resolve(new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }))
+                            : reject(new Error('toBlob failed')), 'image/jpeg', quality);
+                    };
+                    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+                    img.src = url;
+                });
             },
 
             removePhoto() {
                 this.photoPreview = null;
+                this.photoInfo = '';
                 this.$refs.fileInput.value = '';
             },
 

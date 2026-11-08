@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -66,6 +66,22 @@ class User extends Authenticatable
     public function savedRecipes(): HasMany
     {
         return $this->hasMany(Recipe::class)->where('is_saved', true)->latest();
+    }
+
+    /**
+     * Items in the user's fridge / pantry, soonest expiry first.
+     */
+    public function pantryItems(): HasMany
+    {
+        return $this->hasMany(PantryItem::class)->orderByRaw('expires_at IS NULL')->orderBy('expires_at');
+    }
+
+    /**
+     * Weekly meal plans generated for the user.
+     */
+    public function mealPlans(): HasMany
+    {
+        return $this->hasMany(MealPlan::class)->latest();
     }
 
     /**

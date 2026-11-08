@@ -4,10 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -38,14 +43,27 @@ class AuthController extends Controller
             'password.required' => 'Kata sandi wajib diisi.',
         ]);
 
+        // Brute-force protection: max 5 failed attempts per email + IP, then a 60-second lockout
+        $throttleKey = Str::transliterate(Str::lower($credentials['email']) . '|' . $request->ip());
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+
+            return back()->withErrors([
+                'email' => "Terlalu banyak percobaan masuk. Silakan coba lagi dalam {$seconds} detik.",
+            ])->onlyInput('email');
+        }
+
         $remember = $request->boolean('remember');
 
         if (Auth::attempt($credentials, $remember)) {
+            RateLimiter::clear($throttleKey);
             $request->session()->regenerate();
 
             return redirect()->intended(route('dashboard'))
                 ->with('success', 'Selamat datang kembali di FoodCycle, ' . Auth::user()->name . '!');
         }
+
+        RateLimiter::hit($throttleKey, 60);
 
         return back()->withErrors([
             'email' => 'Email atau kata sandi yang Anda masukkan salah.',
@@ -95,11 +113,79 @@ class AuthController extends Controller
             'available_tools' => $validated['available_tools'] ?? ['Kompor', 'Wajan', 'Spatula', 'Rice Cooker'],
         ]);
 
+        // Sends the email verification link (User implements MustVerifyEmail)
+        event(new Registered($user));
+
         Auth::login($user);
         $request->session()->regenerate();
 
         return redirect()->route('dashboard')
-            ->with('success', 'Akun berhasil dibuat! Selamat menjelajahi ide memasak cerdas bersama FoodCycle.');
+            ->with('success', 'Akun berhasil dibuat! Kami juga mengirim tautan verifikasi ke email Anda.');
+    }
+
+    /**
+     * Permanently delete the logged-in user's account, recipes, photos, pantry and meal plans.
+     */
+    public function destroyAccount(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'delete_password' => ['required', 'current_password'],
+            'delete_confirm' => ['required', 'in:HAPUS'],
+        ], [
+            'delete_password.required' => 'Masukkan kata sandi untuk mengonfirmasi.',
+            'delete_password.current_password' => 'Kata sandi tidak cocok.',
+            'delete_confirm.in' => 'Ketik HAPUS (huruf besar) untuk mengonfirmasi.',
+            'delete_confirm.required' => 'Ketik HAPUS (huruf besar) untuk mengonfirmasi.',
+        ]);
+
+        $user = $request->user();
+
+        // Recipe rows, pantry items and meal plans cascade with the user; photo files must be removed by hand
+        $disk = Storage::disk('public');
+        foreach ($user->recipes()->whereNotNull('image_path')->pluck('image_path') as $path) {
+            $disk->delete($path);
+        }
+
+        Auth::logout();
+        $user->delete();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('home')->with('success', 'Akun Anda beserta seluruh datanya telah dihapus. Terima kasih sudah memakai FoodCycle.');
+    }
+
+    /**
+     * "Please verify your email" page.
+     */
+    public function verificationNotice(Request $request): View|RedirectResponse
+    {
+        return $request->user()->hasVerifiedEmail()
+            ? redirect()->route('dashboard')
+            : view('auth.verify-email');
+    }
+
+    /**
+     * Mark the email as verified (link from the verification email).
+     */
+    public function verifyEmail(EmailVerificationRequest $request): RedirectResponse
+    {
+        $request->fulfill();
+
+        return redirect()->route('dashboard')->with('success', 'Email Anda berhasil diverifikasi. Terima kasih!');
+    }
+
+    /**
+     * Send a new verification link.
+     */
+    public function resendVerification(Request $request): RedirectResponse
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->route('dashboard');
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return back()->with('success', 'Tautan verifikasi baru telah dikirim ke ' . $request->user()->email . '.');
     }
 
     /**

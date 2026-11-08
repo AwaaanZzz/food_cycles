@@ -172,6 +172,192 @@ PROMPT;
     }
 
     /**
+     * 4. Weekly meal plan: 7 days of menus within one total budget, plus a combined shopping list.
+     */
+    public function generateWeeklyPlan(array $params, ?User $user = null): array
+    {
+        $budget = (int) ($params['budget'] ?? 150000);
+        $servings = $params['servings'] ?? '2 porsi';
+        $meals = $params['meals'] ?? 'Makan siang dan makan malam';
+        $notes = $params['notes'] ?? '';
+        $dietaryPrefs = $user && !empty($user->dietary_preferences) ? implode(', ', $user->dietary_preferences) : 'Umum';
+        $tools = $user && !empty($user->available_tools) ? implode(', ', $user->available_tools) : 'Kompor, Wajan, Panci';
+        $formatted = 'Rp ' . number_format($budget, 0, ',', '.');
+
+        if (!$this->isConfigured()) {
+            return $this->getMockWeeklyPlan($budget, $servings);
+        }
+
+        $prompt = <<<PROMPT
+Anda adalah Perencana Menu Hemat FoodCycle Indonesia.
+Susun rencana menu 7 hari (Senin sampai Minggu) untuk {$servings}, waktu makan: {$meals}.
+ATURAN WAJIB:
+1. TOTAL biaya belanja seluruh minggu TIDAK BOLEH melebihi {$formatted}.
+2. Manfaatkan bahan yang sama di beberapa hari supaya hemat dan tidak ada bahan tersisa terbuang.
+3. Menu bervariasi, bergizi seimbang, khas rumahan Indonesia, harga pasar tradisional.
+4. Preferensi diet: {$dietaryPrefs}. Alat masak yang tersedia: {$tools}.
+5. Catatan pengguna: {$notes}
+6. "shopping_list" adalah gabungan semua bahan yang perlu dibeli untuk seminggu, dengan takaran total dan harga.
+7. "estimated_cost" setiap hari dan total harus angka integer Rupiah tanpa titik atau simbol.
+PROMPT;
+
+        $payload = [
+            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'responseSchema' => $this->getWeeklyPlanSchema(),
+                'temperature' => 0.6,
+            ],
+        ];
+
+        try {
+            $lastError = null;
+            for ($attempt = 1; $attempt <= 2; $attempt++) {
+                $response = $this->sendGeminiRequest($payload);
+                try {
+                    $plan = $this->sanitizeWeeklyPlan($this->parseGeminiResponse($response));
+                    $plan['ai_model'] = $response['_model_used'] ?? $this->model;
+                    $plan['is_ai_generated'] = true;
+
+                    return $plan;
+                } catch (Exception $e) {
+                    $lastError = $e;
+                    Log::warning("Gemini weekly plan attempt {$attempt} unusable: " . $e->getMessage());
+                }
+            }
+            throw $lastError;
+        } catch (Exception $e) {
+            Log::error('Gemini weekly plan Error: ' . $e->getMessage());
+            throw new RuntimeException($this->friendlyError($e), 0, $e);
+        }
+    }
+
+    protected function getWeeklyPlanSchema(): array
+    {
+        $str = ['type' => 'STRING'];
+        $int = ['type' => 'INTEGER'];
+
+        return [
+            'type' => 'OBJECT',
+            'properties' => [
+                'title' => $str,
+                'estimated_cost' => $int,
+                'days' => [
+                    'type' => 'ARRAY',
+                    'items' => [
+                        'type' => 'OBJECT',
+                        'properties' => [
+                            'day' => $str,
+                            'menu' => $str,
+                            'description' => $str,
+                            'estimated_cost' => $int,
+                            'main_ingredients' => ['type' => 'ARRAY', 'items' => $str],
+                        ],
+                        'required' => ['day', 'menu', 'description', 'estimated_cost', 'main_ingredients'],
+                    ],
+                ],
+                'shopping_list' => [
+                    'type' => 'ARRAY',
+                    'items' => [
+                        'type' => 'OBJECT',
+                        'properties' => ['name' => $str, 'amount' => $str, 'estimated_price' => $int],
+                        'required' => ['name', 'amount', 'estimated_price'],
+                    ],
+                ],
+                'tips' => $str,
+            ],
+            'required' => ['title', 'estimated_cost', 'days', 'shopping_list', 'tips'],
+            'propertyOrdering' => ['title', 'estimated_cost', 'days', 'shopping_list', 'tips'],
+        ];
+    }
+
+    /**
+     * Normalize the weekly plan JSON and make sure it really has days and a shopping list.
+     */
+    protected function sanitizeWeeklyPlan(array $data): array
+    {
+        if (array_is_list($data) && isset($data[0]) && is_array($data[0])) {
+            $data = $data[0];
+        }
+        $toInt = fn ($v) => is_numeric($v) ? (int) $v : (int) preg_replace('/\D/', '', (string) $v);
+
+        $days = [];
+        foreach ((array) ($data['days'] ?? []) as $d) {
+            if (!is_array($d) || trim((string) ($d['menu'] ?? '')) === '') {
+                continue;
+            }
+            $days[] = [
+                'day' => (string) ($d['day'] ?? ''),
+                'menu' => trim((string) $d['menu']),
+                'description' => (string) ($d['description'] ?? ''),
+                'estimated_cost' => $toInt($d['estimated_cost'] ?? 0),
+                'main_ingredients' => array_values(array_filter(array_map('strval', (array) ($d['main_ingredients'] ?? [])))),
+            ];
+        }
+
+        $shopping = [];
+        foreach ((array) ($data['shopping_list'] ?? []) as $s) {
+            if (is_array($s) && trim((string) ($s['name'] ?? '')) !== '') {
+                $shopping[] = ['name' => trim($s['name']), 'amount' => (string) ($s['amount'] ?? ''), 'estimated_price' => $toInt($s['estimated_price'] ?? 0)];
+            }
+        }
+
+        if (count($days) < 5 || !$shopping) {
+            throw new Exception('Rencana menu dari AI tidak lengkap (' . count($days) . ' hari, ' . count($shopping) . ' bahan belanja).');
+        }
+
+        $shoppingTotal = array_sum(array_column($shopping, 'estimated_price'));
+
+        return [
+            'title' => trim((string) ($data['title'] ?? '')) ?: 'Menu Hemat Seminggu',
+            'days' => $days,
+            'shopping_list' => $shopping,
+            // The shopping list is what the user actually pays, so it is the honest weekly total
+            'estimated_cost' => $shoppingTotal ?: $toInt($data['estimated_cost'] ?? 0),
+            'tips' => (string) ($data['tips'] ?? ''),
+        ];
+    }
+
+    /**
+     * Demo plan used only when no Gemini API key is configured.
+     */
+    protected function getMockWeeklyPlan(int $budget, string $servings): array
+    {
+        $names = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+        $menus = [
+            ['Tumis Kangkung & Tempe Goreng', ['Kangkung', 'Tempe', 'Bawang putih']],
+            ['Sayur Sop Ayam', ['Ayam', 'Wortel', 'Kentang', 'Kol']],
+            ['Telur Balado & Lalapan', ['Telur', 'Cabai merah', 'Timun']],
+            ['Orak-arik Tempe Sisa Sop', ['Tempe', 'Wortel', 'Telur']],
+            ['Pepes Tahu Kemangi', ['Tahu', 'Kemangi', 'Daun pisang']],
+            ['Nasi Goreng Ayam Suwir', ['Nasi', 'Ayam', 'Kol', 'Telur']],
+            ['Capcay Sayur Sisa Seminggu', ['Kol', 'Wortel', 'Kentang', 'Bawang putih']],
+        ];
+        $days = [];
+        foreach ($menus as $i => [$menu, $ing]) {
+            $days[] = ['day' => $names[$i], 'menu' => $menu, 'description' => 'Contoh menu (mode demo).', 'estimated_cost' => 15000, 'main_ingredients' => $ing];
+        }
+        $shopping = [
+            ['name' => 'Ayam potong', 'amount' => '500 gram', 'estimated_price' => 20000],
+            ['name' => 'Tempe', 'amount' => '2 papan', 'estimated_price' => 10000],
+            ['name' => 'Tahu', 'amount' => '10 potong', 'estimated_price' => 8000],
+            ['name' => 'Telur', 'amount' => '10 butir', 'estimated_price' => 22000],
+            ['name' => 'Sayuran campur', 'amount' => '1 kg', 'estimated_price' => 20000],
+            ['name' => 'Bumbu dapur', 'amount' => '1 paket', 'estimated_price' => 15000],
+        ];
+
+        return [
+            'title' => 'Menu Hemat Seminggu (Demo)',
+            'days' => $days,
+            'shopping_list' => $shopping,
+            'estimated_cost' => array_sum(array_column($shopping, 'estimated_price')),
+            'tips' => 'Masak ayam sekaligus di hari Selasa, sisihkan sebagian untuk nasi goreng hari Sabtu.',
+            'ai_model' => 'offline-demo',
+            'is_ai_generated' => false,
+        ];
+    }
+
+    /**
      * Send a recipe request to Gemini, forcing a fixed JSON structure, and return a validated recipe.
      * Retries once when the AI answers with an incomplete or differently shaped recipe.
      */

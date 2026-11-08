@@ -14,10 +14,22 @@ class FoodCycleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_is_redirected_to_login(): void
+    public function test_guest_sees_landing_page_and_user_goes_to_dashboard(): void
     {
-        $response = $this->get('/');
-        $response->assertRedirect(route('login'));
+        $this->get('/')->assertOk()->assertSee('tanpa sisa', false)->assertSee('Mulai Gratis')
+            ->assertSee('<meta property="og:title"', false);
+
+        $this->actingAs(User::factory()->create())->get('/')->assertRedirect(route('dashboard'));
+    }
+
+    public function test_protected_pages_redirect_guests_to_login(): void
+    {
+        $this->get(route('dashboard'))->assertRedirect(route('login'));
+    }
+
+    public function test_custom_404_page_is_in_indonesian(): void
+    {
+        $this->get('/halaman-yang-tidak-ada')->assertNotFound()->assertSee('Halaman Tidak Ditemukan');
     }
 
     public function test_login_screen_can_be_rendered(): void
@@ -31,7 +43,7 @@ class FoodCycleTest extends TestCase
     {
         $response = $this->get(route('register'));
         $response->assertStatus(200);
-        $response->assertSee('Daftar Akun FoodCycle AI');
+        $response->assertSee('Buat akun FoodCycle');
     }
 
     public function test_new_users_can_register_with_preferences(): void
@@ -91,7 +103,7 @@ class FoodCycleTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('dashboard'));
         $response->assertStatus(200);
-        $response->assertSee('3 Mode Memasak Cerdas');
+        $response->assertSee('Buat resep baru');
         $response->assertSee('FCAI');
         $response->assertSee('FCBB');
         $response->assertSee('FBPB');
@@ -181,7 +193,7 @@ class FoodCycleTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Resep Uji Coba FoodCycle');
         $response->assertSee('Rp 15.000');
-        $response->assertSee('Disclaimer FoodCycle');
+        $response->assertSee('Langkah memasak');
     }
 
     public function test_user_can_toggle_save_recipe(): void
@@ -285,7 +297,7 @@ class FoodCycleTest extends TestCase
         $response->assertSee('Awan Kurnia');
         $response->assertSee('awan@foodcycle.id');
         $response->assertSee('Halal');
-        $response->assertSee('Data Diri Customer');
+        $response->assertSee('Data diri');
     }
 
     public function test_customer_can_update_profile_information(): void
@@ -406,5 +418,273 @@ class FoodCycleTest extends TestCase
         $response->assertSessionHas('error', fn ($msg) => str_contains($msg, 'Foto tidak dapat dibaca'));
         $this->assertSame(0, Recipe::count());
         $this->assertEmpty(Storage::disk('public')->allFiles('recipes'));
+    }
+
+    public function test_login_is_locked_after_five_failed_attempts(): void
+    {
+        $user = User::factory()->create(['password' => 'rahasia123']);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->post(route('login'), ['email' => $user->email, 'password' => 'salah']);
+        }
+
+        // Even the correct password is refused while locked out
+        $response = $this->post(route('login'), ['email' => $user->email, 'password' => 'rahasia123']);
+        $response->assertSessionHasErrors('email');
+        $this->assertStringContainsString('Terlalu banyak percobaan', session('errors')->first('email'));
+        $this->assertGuest();
+    }
+
+    public function test_user_can_reset_forgotten_password(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $user = User::factory()->create();
+
+        $this->get(route('password.request'))->assertOk()->assertSee('Lupa Kata Sandi');
+        $this->post(route('password.email'), ['email' => $user->email])->assertSessionHas('status');
+
+        $token = null;
+        \Illuminate\Support\Facades\Notification::assertSentTo($user, \Illuminate\Auth\Notifications\ResetPassword::class,
+            function ($notification) use (&$token, $user) {
+                $token = $notification->token;
+                $mail = $notification->toMail($user);
+                return $mail->subject === 'Atur Ulang Kata Sandi FoodCycle';
+            });
+
+        $this->get(route('password.reset', ['token' => $token, 'email' => $user->email]))->assertOk();
+
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'sandibaru123',
+            'password_confirmation' => 'sandibaru123',
+        ])->assertRedirect(route('login'));
+
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('sandibaru123', $user->fresh()->password));
+    }
+
+    public function test_forgot_password_does_not_reveal_unknown_emails(): void
+    {
+        $this->post(route('password.email'), ['email' => 'tidakada@example.com'])
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors();
+    }
+
+    public function test_history_page_lists_all_recipes_including_unsaved(): void
+    {
+        $user = User::factory()->create();
+        Recipe::factory()->for($user)->create(['title' => 'Resep Disimpan', 'is_saved' => true]);
+        Recipe::factory()->for($user)->create(['title' => 'Resep Biasa', 'is_saved' => false]);
+        Recipe::factory()->create(['title' => 'Resep Orang Lain']);
+
+        $this->actingAs($user)->get(route('recipes.index'))
+            ->assertOk()->assertSee('Riwayat Resep')
+            ->assertSee('Resep Disimpan')->assertSee('Resep Biasa')->assertDontSee('Resep Orang Lain');
+
+        $this->actingAs($user)->get(route('recipes.saved'))
+            ->assertOk()->assertSee('Resep Disimpan')->assertDontSee('Resep Biasa');
+    }
+
+    public function test_history_search_matches_ingredients(): void
+    {
+        $user = User::factory()->create();
+        Recipe::factory()->for($user)->create([
+            'title' => 'Sup Hangat',
+            'ingredients' => [['name' => 'Kangkung', 'amount' => '1 ikat', 'estimated_price' => 3000]],
+        ]);
+        Recipe::factory()->for($user)->create(['title' => 'Nasi Goreng']);
+
+        $this->actingAs($user)->get(route('recipes.index', ['q' => 'Kangkung']))
+            ->assertSee('Sup Hangat')->assertDontSee('Nasi Goreng');
+    }
+
+    public function test_recipe_can_be_shared_publicly_and_unshared(): void
+    {
+        $user = User::factory()->create();
+        $recipe = Recipe::factory()->for($user)->create(['title' => 'Rendang Bagikan']);
+
+        $url = $this->actingAs($user)->postJson(route('recipes.share', $recipe->id), ['action' => 'enable'])
+            ->assertOk()->json('url');
+        $this->assertNotNull($recipe->fresh()->share_token);
+
+        // A guest can open the public link, read-only (no delete/save buttons)
+        auth()->logout();
+        $this->get($url)->assertOk()->assertSee('Rendang Bagikan')->assertSee('Buat resepmu sendiri')
+            ->assertDontSee('Hapus resep');
+
+        $this->actingAs($user)->postJson(route('recipes.share', $recipe->id), ['action' => 'disable'])->assertOk();
+        auth()->logout();
+        $this->get($url)->assertNotFound();
+    }
+
+    public function test_other_users_cannot_share_my_recipe(): void
+    {
+        $recipe = Recipe::factory()->create();
+        $this->actingAs(User::factory()->create())
+            ->postJson(route('recipes.share', $recipe->id), ['action' => 'enable'])->assertNotFound();
+        $this->assertNull($recipe->fresh()->share_token);
+    }
+
+    public function test_regenerate_creates_a_new_recipe_from_the_same_input(): void
+    {
+        $user = User::factory()->create();
+        $original = Recipe::factory()->for($user)->create([
+            'type' => 'fcai',
+            'source_input' => ['ingredients' => 'telur, tempe', 'tools' => ['Wajan'], 'servings' => '2 porsi'],
+        ]);
+
+        $response = $this->actingAs($user)->post(route('recipes.regenerate', $original->id));
+
+        $new = Recipe::latest('id')->first();
+        $this->assertNotSame($original->id, $new->id);
+        $response->assertRedirect(route('recipes.show', $new->id));
+        $this->assertSame('fcai', $new->type);
+        $this->assertSame('telur, tempe', $new->source_input['ingredients']);
+        $this->assertNull($new->source_input['notes']);
+    }
+
+    public function test_regenerate_photo_recipe_gets_its_own_photo_copy(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('recipes/asli.jpg', 'img');
+        $user = User::factory()->create();
+        $original = Recipe::factory()->for($user)->create([
+            'type' => 'fbpb', 'image_path' => 'recipes/asli.jpg', 'source_input' => ['notes' => null],
+        ]);
+
+        $this->actingAs($user)->post(route('recipes.regenerate', $original->id));
+
+        $new = Recipe::latest('id')->first();
+        $this->assertNotSame($original->image_path, $new->image_path);
+        Storage::disk('public')->assertExists([$original->image_path, $new->image_path]);
+    }
+
+    public function test_registration_sends_verification_email_and_link_verifies(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $this->post(route('register'), [
+            'name' => 'Sari', 'email' => 'sari@example.com',
+            'password' => 'rahasia123', 'password_confirmation' => 'rahasia123',
+        ]);
+        $user = User::where('email', 'sari@example.com')->first();
+        $this->assertFalse($user->hasVerifiedEmail());
+        \Illuminate\Support\Facades\Notification::assertSentTo($user, \Illuminate\Auth\Notifications\VerifyEmail::class);
+
+        // Unverified users can still use the app, they just see a reminder
+        $this->actingAs($user)->get(route('dashboard'))->assertOk()->assertSee('Email Anda belum diverifikasi');
+
+        $url = \Illuminate\Support\Facades\URL::temporarySignedRoute('verification.verify', now()->addHour(),
+            ['id' => $user->id, 'hash' => sha1($user->email)]);
+        $this->actingAs($user)->get($url)->assertRedirect(route('dashboard'));
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_user_can_delete_account_with_all_data(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('recipes/foto.jpg', 'img');
+        $user = User::factory()->create(['password' => 'rahasia123']);
+        Recipe::factory()->for($user)->create(['image_path' => 'recipes/foto.jpg']);
+        $user->pantryItems()->create(['name' => 'Bayam']);
+
+        // Wrong confirmation word: nothing deleted
+        $this->actingAs($user)->delete(route('profile.destroy'), ['delete_password' => 'rahasia123', 'delete_confirm' => 'hapus'])
+            ->assertSessionHasErrors('delete_confirm');
+        $this->assertNotNull($user->fresh());
+
+        $this->actingAs($user)->delete(route('profile.destroy'), ['delete_password' => 'rahasia123', 'delete_confirm' => 'HAPUS'])
+            ->assertRedirect(route('home'));
+        $this->assertNull($user->fresh());
+        $this->assertSame(0, Recipe::count());
+        $this->assertSame(0, \App\Models\PantryItem::count());
+        Storage::disk('public')->assertMissing('recipes/foto.jpg');
+        $this->assertGuest();
+    }
+
+    public function test_owner_can_rate_and_note_a_recipe(): void
+    {
+        $user = User::factory()->create();
+        $recipe = Recipe::factory()->for($user)->create();
+
+        $this->actingAs($user)->post(route('recipes.review', $recipe->id), ['rating' => 4, 'user_notes' => 'Kurangi garam'])
+            ->assertSessionHas('success');
+        $recipe->refresh();
+        $this->assertSame(4, (int) $recipe->rating);
+        $this->assertSame('Kurangi garam', $recipe->user_notes);
+
+        $this->actingAs($user)->get(route('recipes.show', $recipe->id))->assertSee('Kurangi garam')->assertSee('Daftar belanja');
+
+        // Notes stay private on the public share page
+        $recipe->update(['share_token' => \Illuminate\Support\Str::random(32)]);
+        auth()->logout();
+        $this->get(route('recipes.public', $recipe->share_token))->assertOk()->assertDontSee('Kurangi garam');
+    }
+
+    public function test_pantry_items_expiring_soon_show_on_dashboard(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('pantry.store'), ['name' => 'Bayam', 'quantity' => '1 ikat', 'expires_at' => now()->addDay()->toDateString()])
+            ->assertSessionHas('success');
+        $this->actingAs($user)->post(route('pantry.store'), ['name' => 'Beras', 'expires_at' => now()->addMonth()->toDateString()]);
+
+        $this->actingAs($user)->get(route('pantry.index'))->assertOk()->assertSee('Bayam')->assertSee('Besok kedaluwarsa');
+        $this->actingAs($user)->get(route('dashboard'))->assertOk()
+            ->assertSee('Segera masak sebelum terbuang')->assertSee('Bayam')->assertDontSee('Beras');
+    }
+
+    public function test_pantry_items_are_private_and_can_be_removed(): void
+    {
+        $owner = User::factory()->create();
+        $item = $owner->pantryItems()->create(['name' => 'Tahu']);
+
+        $this->actingAs(User::factory()->create())->delete(route('pantry.destroy', $item->id))->assertNotFound();
+        $this->actingAs($owner)->delete(route('pantry.destroy', $item->id))->assertSessionHas('success');
+        $this->assertSame(0, \App\Models\PantryItem::count());
+    }
+
+    public function test_weekly_meal_plan_is_generated_and_saved(): void
+    {
+        config(['services.gemini.api_key' => 'test-key']);
+        $days = collect(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'])->map(fn ($d) => [
+            'day' => $d, 'menu' => "Menu $d", 'description' => 'Enak', 'estimated_cost' => 15000, 'main_ingredients' => ['Telur'],
+        ])->all();
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response($this->geminiReply([
+            'title' => 'Menu Hemat Minggu Ini', 'estimated_cost' => 1,
+            'days' => $days,
+            'shopping_list' => [['name' => 'Telur', 'amount' => '1 kg', 'estimated_price' => 30000], ['name' => 'Beras', 'amount' => '2 kg', 'estimated_price' => 28000]],
+            'tips' => 'Belanja di pasar pagi.',
+        ]))]);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('meal-plans.store'), ['budget' => 150000, 'servings' => '2 porsi', 'meals' => 'Makan malam saja']);
+
+        $plan = \App\Models\MealPlan::first();
+        $response->assertRedirect(route('meal-plans.show', $plan->id));
+        $this->assertCount(7, $plan->days);
+        $this->assertSame(58000, $plan->estimated_cost); // total = sum of the shopping list
+        $this->actingAs($user)->get(route('meal-plans.show', $plan->id))->assertOk()->assertSee('Menu Rabu')->assertSee('Kirim ke WhatsApp');
+        $this->actingAs(User::factory()->create())->get(route('meal-plans.show', $plan->id))->assertNotFound();
+    }
+
+    public function test_incomplete_weekly_plan_is_not_saved(): void
+    {
+        config(['services.gemini.api_key' => 'test-key']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response($this->geminiReply(['title' => 'x', 'days' => []]))]);
+
+        $this->actingAs(User::factory()->create())->from(route('meal-plans.index'))
+            ->post(route('meal-plans.store'), ['budget' => 150000, 'servings' => '2 porsi', 'meals' => 'Makan malam saja'])
+            ->assertRedirect(route('meal-plans.index'))->assertSessionHas('error');
+        $this->assertSame(0, \App\Models\MealPlan::count());
+    }
+
+    public function test_new_pages_render_for_logged_in_user(): void
+    {
+        $user = User::factory()->create();
+        foreach (['pantry.index', 'meal-plans.index', 'recipes.index', 'profile', 'dashboard'] as $page) {
+            $this->actingAs($user)->get(route($page))->assertOk();
+        }
+        $this->actingAs($user)->get(route('profile'))->assertSee('Hapus Akun');
     }
 }
