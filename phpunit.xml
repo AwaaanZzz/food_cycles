@@ -32,5 +32,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Tests never call the real Gemini API; individual tests fake HTTP responses -->
+        <env name="GEMINI_API_KEY" value=""/>
     </php>
 </phpunit>

@@ -201,9 +201,10 @@ class CookingAssistantController extends Controller
 
         try {
             $photo = $request->file('photo');
-            $storedPath = $photo->store('recipes', 'public');
 
+            // Ask the AI first; only keep the photo when a recipe was actually produced
             $recipeData = $this->geminiService->generateFbpbRecipe($photo, $validated['notes'] ?? null, $user);
+            $storedPath = $photo->store('recipes', 'public');
 
             $recipe = Recipe::create([
                 'user_id' => $user->id,

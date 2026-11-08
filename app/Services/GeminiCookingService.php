@@ -7,6 +7,7 @@ use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class GeminiCookingService
 {
@@ -159,43 +160,114 @@ PROMPT;
             $mimeType = $photo->getMimeType() ?: 'image/jpeg';
             $imageData = base64_encode(file_get_contents($photo->getRealPath()));
 
-            $payload = [
-                'contents' => [
-                    [
-                        'role' => 'user',
-                        'parts' => [
-                            [
-                                'inline_data' => [
-                                    'mime_type' => $mimeType,
-                                    'data' => $imageData,
-                                ],
-                            ],
-                            [
-                                'text' => $prompt . "\n\n" . $this->getJsonSchemaInstruction(),
-                            ],
-                        ],
-                    ],
-                ],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'temperature' => 0.4,
-                ],
-            ];
-
-            $response = $this->sendGeminiRequest($payload);
-            $parsed = $this->parseGeminiResponse($response);
-            $parsed['ai_model'] = $response['_model_used'] ?? $this->model;
-            $parsed['is_ai_generated'] = true;
-
-            return $this->validateAndSanitizeRecipeData($parsed, 'fbpb');
+            return $this->requestRecipe([
+                ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageData]],
+                ['text' => $prompt . "\n\n" . $this->getJsonSchemaInstruction()],
+            ], 0.4, 'fbpb');
         } catch (Exception $e) {
-            Log::error('Gemini FBPB Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            // If API fails due to key/network, return a high-quality fallback recipe
-            return $this->getMockRecipe('fbpb', [
-                'notes' => $notes,
-                'error_notice' => 'Catatan: Resep dihasilkan dalam mode cadangan karena kendala koneksi AI: ' . $e->getMessage(),
-            ]);
+            Log::error('Gemini FBPB Error: ' . $e->getMessage());
+            // Do not fall back to an unrelated sample recipe: the user would get a dish that is not in their photo.
+            throw new RuntimeException($this->friendlyError($e), 0, $e);
         }
+    }
+
+    /**
+     * Send a recipe request to Gemini, forcing a fixed JSON structure, and return a validated recipe.
+     * Retries once when the AI answers with an incomplete or differently shaped recipe.
+     */
+    protected function requestRecipe(array $parts, float $temperature, string $type): array
+    {
+        $payload = [
+            'contents' => [['role' => 'user', 'parts' => $parts]],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'responseSchema' => $this->getResponseSchema(),
+                'temperature' => $temperature,
+            ],
+        ];
+
+        $lastError = null;
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $response = $this->sendGeminiRequest($payload);
+            try {
+                $recipe = $this->extractRecipe($this->parseGeminiResponse($response));
+                $recipe['ai_model'] = $response['_model_used'] ?? $this->model;
+                $recipe['is_ai_generated'] = true;
+
+                $clean = $this->validateAndSanitizeRecipeData($recipe, $type);
+                if (!$clean['ingredients'] || !$clean['steps']) {
+                    throw new Exception('Respon AI tidak berisi bahan atau langkah yang bisa dibaca.');
+                }
+
+                return $clean;
+            } catch (Exception $e) {
+                $lastError = $e;
+                Log::warning("Gemini {$type} attempt {$attempt} returned an unusable recipe: " . $e->getMessage());
+            }
+        }
+
+        throw $lastError;
+    }
+
+    /**
+     * Pull the recipe object out of the decoded JSON, tolerating common alternative shapes
+     * (a list with one recipe, or a wrapper such as {"recipe": {...}}), and check it is complete.
+     */
+    protected function extractRecipe(array $decoded): array
+    {
+        if (array_is_list($decoded) && isset($decoded[0]) && is_array($decoded[0])) {
+            $decoded = $decoded[0];
+        }
+
+        if (!isset($decoded['title'])) {
+            foreach (['recipe', 'resep', 'data', 'result'] as $key) {
+                if (isset($decoded[$key]) && is_array($decoded[$key])) {
+                    $decoded = array_is_list($decoded[$key]) ? ($decoded[$key][0] ?? []) : $decoded[$key];
+                    break;
+                }
+            }
+        }
+
+        if (!isset($decoded['title']) && count($decoded) === 1 && is_array(reset($decoded))) {
+            $decoded = reset($decoded);
+        }
+
+        $missing = [];
+        if (!is_string($decoded['title'] ?? null) || trim($decoded['title']) === '') {
+            $missing[] = 'title';
+        }
+        foreach (['ingredients', 'steps'] as $key) {
+            if (!is_array($decoded[$key] ?? null) || count($decoded[$key]) === 0) {
+                $missing[] = $key;
+            }
+        }
+        if ($missing) {
+            throw new Exception('Respon AI tidak lengkap (kolom kosong: ' . implode(', ', $missing) . ').');
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Short, user-facing explanation of why the AI could not produce a recipe.
+     */
+    protected function friendlyError(Exception $e): string
+    {
+        $msg = $e->getMessage();
+        if (str_contains($msg, 'Unable to process input image')) {
+            return 'Foto tidak dapat dibaca oleh AI. Coba unggah foto lain yang lebih jelas (JPG/PNG).';
+        }
+        if (str_contains($msg, '429') || stripos($msg, 'quota') !== false) {
+            return 'Kuota Gemini AI sedang habis atau terlalu banyak permintaan. Coba lagi beberapa saat lagi.';
+        }
+        if (str_contains($msg, '401') || str_contains($msg, '403') || stripos($msg, 'API key') !== false) {
+            return 'Kunci API Gemini tidak valid atau tidak diizinkan. Periksa GEMINI_API_KEY di file .env.';
+        }
+        if (stripos($msg, 'timed out') !== false || stripos($msg, 'cURL error') !== false) {
+            return 'Koneksi ke Gemini AI terputus atau terlalu lama. Periksa internet Anda lalu coba lagi.';
+        }
+
+        return 'AI belum berhasil menyusun resep yang lengkap. Silakan coba lagi.';
     }
 
     /**
@@ -208,35 +280,58 @@ PROMPT;
         }
 
         try {
-            $payload = [
-                'contents' => [
-                    [
-                        'role' => 'user',
-                        'parts' => [
-                            [
-                                'text' => $systemPrompt . "\n\n" . $userPrompt . "\n\n" . $this->getJsonSchemaInstruction(),
-                            ],
-                        ],
-                    ],
-                ],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'temperature' => 0.7,
-                ],
-            ];
-
-            $response = $this->sendGeminiRequest($payload);
-            $parsed = $this->parseGeminiResponse($response);
-            $parsed['ai_model'] = $response['_model_used'] ?? $this->model;
-            $parsed['is_ai_generated'] = true;
-
-            return $this->validateAndSanitizeRecipeData($parsed, $type);
+            return $this->requestRecipe([
+                ['text' => $systemPrompt . "\n\n" . $userPrompt . "\n\n" . $this->getJsonSchemaInstruction()],
+            ], 0.7, $type);
         } catch (Exception $e) {
             Log::error("Gemini {$type} Error: " . $e->getMessage());
-            return $this->getMockRecipe($type, array_merge($context, [
-                'error_notice' => 'Catatan: Resep dihasilkan dalam mode cadangan karena kendala koneksi AI: ' . $e->getMessage(),
-            ]));
+            // Surface the failure instead of saving a generic sample recipe that ignores the user's input.
+            throw new RuntimeException($this->friendlyError($e), 0, $e);
         }
+    }
+
+    /**
+     * Gemini structured-output schema: forces the exact recipe JSON shape.
+     */
+    protected function getResponseSchema(): array
+    {
+        $str = ['type' => 'STRING'];
+
+        return [
+            'type' => 'OBJECT',
+            'properties' => [
+                'title' => $str,
+                'description' => $str,
+                'cooking_time' => $str,
+                'servings' => $str,
+                'difficulty' => $str,
+                'estimated_cost' => ['type' => 'INTEGER'],
+                'cooking_tools' => ['type' => 'ARRAY', 'items' => $str],
+                'ingredients' => [
+                    'type' => 'ARRAY',
+                    'items' => [
+                        'type' => 'OBJECT',
+                        'properties' => [
+                            'name' => $str,
+                            'amount' => $str,
+                            'estimated_price' => ['type' => 'INTEGER'],
+                        ],
+                        'required' => ['name', 'amount', 'estimated_price'],
+                    ],
+                ],
+                'steps' => ['type' => 'ARRAY', 'items' => $str],
+                'nutrition' => [
+                    'type' => 'OBJECT',
+                    'properties' => ['calories' => $str, 'protein' => $str, 'carbs' => $str, 'fat' => $str],
+                    'required' => ['calories', 'protein', 'carbs', 'fat'],
+                ],
+                'tips' => $str,
+            ],
+            'required' => ['title', 'description', 'cooking_time', 'servings', 'difficulty', 'estimated_cost',
+                'cooking_tools', 'ingredients', 'steps', 'nutrition', 'tips'],
+            'propertyOrdering' => ['title', 'description', 'cooking_time', 'servings', 'difficulty', 'estimated_cost',
+                'cooking_tools', 'ingredients', 'steps', 'nutrition', 'tips'],
+        ];
     }
 
     /**
@@ -290,6 +385,10 @@ PROMPT;
         $parts = $candidates[0]['content']['parts'] ?? [];
         $rawText = '';
         foreach ($parts as $part) {
+            // Skip the model's internal "thinking" parts; only the answer text is JSON
+            if (!empty($part['thought'])) {
+                continue;
+            }
             if (isset($part['text'])) {
                 $rawText .= $part['text'];
             }
@@ -371,31 +470,63 @@ SCHEMA;
      */
     protected function validateAndSanitizeRecipeData(array $data, string $type): array
     {
+        $toInt = fn ($v) => is_numeric($v) ? (int) $v : (int) preg_replace('/\D/', '', (string) $v);
+
+        // Ingredients: accept objects or plain strings, always return {name, amount, estimated_price}
+        $ingredients = [];
+        foreach ((array) ($data['ingredients'] ?? []) as $item) {
+            if (is_string($item) && trim($item) !== '') {
+                $ingredients[] = ['name' => trim($item), 'amount' => '', 'estimated_price' => 0];
+            } elseif (is_array($item) && trim((string) ($item['name'] ?? $item['nama'] ?? '')) !== '') {
+                $ingredients[] = [
+                    'name' => trim((string) ($item['name'] ?? $item['nama'])),
+                    'amount' => trim((string) ($item['amount'] ?? $item['takaran'] ?? $item['quantity'] ?? '')),
+                    'estimated_price' => $toInt($item['estimated_price'] ?? $item['price'] ?? $item['harga'] ?? 0),
+                ];
+            }
+        }
+
+        // Steps: accept strings or objects like {"step": "..."} / {"instruction": "..."}
+        $steps = [];
+        foreach ((array) ($data['steps'] ?? []) as $step) {
+            $text = is_array($step) ? ($step['instruction'] ?? $step['step'] ?? $step['text'] ?? $step['description'] ?? '') : $step;
+            $text = trim(preg_replace('/^\s*(langkah\s*)?\d+[.):]\s*/i', '', (string) $text));
+            if ($text !== '') {
+                $steps[] = $text;
+            }
+        }
+
+        $tools = array_values(array_filter(array_map(
+            fn ($t) => trim(is_array($t) ? (string) ($t['name'] ?? '') : (string) $t),
+            (array) ($data['cooking_tools'] ?? [])
+        )));
+
+        $nutrition = is_array($data['nutrition'] ?? null) ? $data['nutrition'] : [];
+        $nutrition = [
+            'calories' => (string) ($nutrition['calories'] ?? $nutrition['kalori'] ?? '-'),
+            'protein' => (string) ($nutrition['protein'] ?? '-'),
+            'carbs' => (string) ($nutrition['carbs'] ?? $nutrition['karbohidrat'] ?? '-'),
+            'fat' => (string) ($nutrition['fat'] ?? $nutrition['lemak'] ?? '-'),
+        ];
+
+        // Total cost: use the AI's figure, or the sum of ingredient prices when missing/zero
+        $ingredientTotal = array_sum(array_column($ingredients, 'estimated_price'));
+        $cost = $toInt($data['estimated_cost'] ?? 0) ?: $ingredientTotal;
+
         return [
-            'title' => (string) ($data['title'] ?? 'Resep Lezat FoodCycle'),
-            'description' => (string) ($data['description'] ?? 'Resep kreasi sehat dan hemat dari FoodCycle AI Cooking Assistant.'),
+            'title' => trim((string) $data['title']),
+            'description' => (string) ($data['description'] ?? ''),
             'type' => $type,
-            'cooking_time' => (string) ($data['cooking_time'] ?? '25 menit'),
-            'servings' => (string) ($data['servings'] ?? '2 porsi'),
-            'difficulty' => (string) ($data['difficulty'] ?? 'Mudah'),
-            'estimated_cost' => (int) ($data['estimated_cost'] ?? 20000),
-            'cooking_tools' => is_array($data['cooking_tools'] ?? null) ? $data['cooking_tools'] : ['Kompor', 'Wajan', 'Spatula'],
-            'ingredients' => is_array($data['ingredients'] ?? null) ? $data['ingredients'] : [
-                ['name' => 'Bahan Utama', 'amount' => 'Secukupnya', 'estimated_price' => 10000],
-            ],
-            'steps' => is_array($data['steps'] ?? null) ? $data['steps'] : [
-                'Siapkan seluruh bahan dan alat masak.',
-                'Olah bahan sesuai petunjuk penyajian.',
-                'Sajikan selagi hangat untuk keluarga tercinta.',
-            ],
-            'nutrition' => is_array($data['nutrition'] ?? null) ? $data['nutrition'] : [
-                'calories' => '300 kkal',
-                'protein' => '15g',
-                'carbs' => '35g',
-                'fat' => '10g',
-            ],
-            'tips' => (string) ($data['tips'] ?? 'Simpan sisa sayuran di wadah kedap udara agar tahan lebih lama.'),
-            'ai_model' => (string) ($data['ai_model'] ?? 'gemini-3.5-flash-lite'),
+            'cooking_time' => (string) ($data['cooking_time'] ?? '-'),
+            'servings' => (string) ($data['servings'] ?? '-'),
+            'difficulty' => (string) ($data['difficulty'] ?? 'Sedang'),
+            'estimated_cost' => $cost,
+            'cooking_tools' => $tools,
+            'ingredients' => $ingredients,
+            'steps' => $steps,
+            'nutrition' => $nutrition,
+            'tips' => (string) ($data['tips'] ?? ''),
+            'ai_model' => (string) ($data['ai_model'] ?? $this->model),
             'is_ai_generated' => (bool) ($data['is_ai_generated'] ?? true),
             'error_notice' => $data['error_notice'] ?? null,
         ];

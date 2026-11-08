@@ -6,6 +6,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -323,5 +324,87 @@ class FoodCycleTest extends TestCase
         $response->assertSessionHas('success');
         $user->refresh();
         $this->assertTrue(\Illuminate\Support\Facades\Hash::check('newsecret456', $user->password));
+    }
+
+    /**
+     * Build a fake Gemini generateContent response whose answer text is the given JSON value.
+     */
+    private function geminiReply(mixed $json): array
+    {
+        return ['candidates' => [[
+            'finishReason' => 'STOP',
+            'content' => ['parts' => [['text' => json_encode($json)]]],
+        ]]];
+    }
+
+    private function sampleRecipe(): array
+    {
+        return [
+            'title' => 'Rendang Daging Sapi',
+            'description' => 'Daging sapi bumbu rempah.',
+            'cooking_time' => '3 jam',
+            'servings' => '4 porsi',
+            'difficulty' => 'Sedang',
+            'estimated_cost' => 0,
+            'cooking_tools' => ['Wajan', 'Kompor'],
+            'ingredients' => [
+                ['name' => 'Daging sapi', 'amount' => '500 gram', 'estimated_price' => 70000],
+                ['name' => 'Santan', 'amount' => '1 liter', 'estimated_price' => 15000],
+            ],
+            'steps' => ['Haluskan bumbu.', 'Masak daging dengan santan hingga kering.'],
+            'nutrition' => ['calories' => '450 kkal', 'protein' => '30g', 'carbs' => '10g', 'fat' => '32g'],
+            'tips' => 'Aduk terus agar tidak gosong.',
+        ];
+    }
+
+    public function test_fcai_uses_real_ai_recipe_even_when_wrapped_in_a_list(): void
+    {
+        config(['services.gemini.api_key' => 'test-key']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response($this->geminiReply([$this->sampleRecipe()]))]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('assistant.fcai'), ['ingredients' => 'daging sapi, santan']);
+
+        $recipe = Recipe::latest('id')->first();
+        $this->assertSame('Rendang Daging Sapi', $recipe->title);
+        $this->assertSame('Daging sapi', $recipe->ingredients[0]['name']);
+        $this->assertCount(2, $recipe->steps);
+        // estimated_cost 0 from the AI is replaced by the sum of ingredient prices
+        $this->assertSame(85000, $recipe->estimated_cost);
+        Http::assertSent(fn ($req) => isset($req['generationConfig']['responseSchema'])
+            && $req->hasHeader('x-goog-api-key', 'test-key')
+            && !str_contains($req->url(), 'key='));
+    }
+
+    public function test_incomplete_ai_reply_is_not_saved_as_a_generic_recipe(): void
+    {
+        config(['services.gemini.api_key' => 'test-key']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response($this->geminiReply(['foo' => 'bar']))]);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->from(route('dashboard'))
+            ->post(route('assistant.fcai'), ['ingredients' => 'telur, tempe']);
+
+        $response->assertRedirect(route('dashboard'));
+        $response->assertSessionHas('error');
+        $this->assertSame(0, Recipe::count());
+    }
+
+    public function test_fbpb_failure_shows_error_and_does_not_keep_photo(): void
+    {
+        Storage::fake('public');
+        config(['services.gemini.api_key' => 'test-key']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response(
+            ['error' => ['message' => 'Unable to process input image.']], 400
+        )]);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->from(route('dashboard'))->post(route('assistant.fbpb'), [
+            'photo' => UploadedFile::fake()->create('rendang.jpg', 100, 'image/jpeg'),
+        ]);
+
+        $response->assertSessionHas('error', fn ($msg) => str_contains($msg, 'Foto tidak dapat dibaca'));
+        $this->assertSame(0, Recipe::count());
+        $this->assertEmpty(Storage::disk('public')->allFiles('recipes'));
     }
 }
