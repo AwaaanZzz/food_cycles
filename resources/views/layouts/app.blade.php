@@ -40,9 +40,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
-        body {
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-        }
+        /* Font is set once via --font-sans in resources/css/app.css */
         [x-cloak] { display: none !important; }
     </style>
 </head>
@@ -53,14 +51,14 @@
     <!-- Navbar -->
     <header class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800 shadow-2xs transition-colors duration-150">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
+            <div class="flex items-center justify-between gap-3 h-16">
                 
                 <!-- Brand Logo (Mascot + Typography) -->
                 <div class="flex items-center gap-3">
                     <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 group">
                         <img src="{{ asset('images/mascot.png') }}" alt="FoodCycle" class="h-10 w-auto shrink-0 select-none group-hover:scale-105 transition-transform duration-200">
                         <div class="flex items-center gap-2">
-                            <img src="{{ asset('images/brand-text.png') }}" alt="FoodCycle" class="h-7 w-auto select-none dark:brightness-0 dark:invert">
+                            <img src="{{ asset('images/brand-text.png') }}" alt="FoodCycle" class="h-7 w-auto select-none drop-shadow-[0_1px_1px_rgba(15,23,42,0.45)] dark:drop-shadow-none dark:brightness-0 dark:invert">
                             <span class="sr-only">FoodCycle</span>
                             <span class="hidden sm:inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-2xs">
                                 Assistant
@@ -71,14 +69,14 @@
 
                 <!-- Desktop Navigation -->
                 @auth
-                <nav class="hidden md:flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                <nav class="hidden lg:flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                     <a href="{{ route('dashboard') }}" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 {{ request()->routeIs('dashboard') ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700/60' }}">
                         <svg class="w-4 h-4 {{ request()->routeIs('dashboard') ? 'text-white' : 'text-slate-500 dark:text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                         <span>Beranda</span>
                     </a>
                     <a href="{{ route('recipes.saved') }}" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 {{ request()->routeIs('recipes.saved') ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700/60' }}">
                         <svg class="w-4 h-4 {{ request()->routeIs('recipes.saved') ? 'text-white' : 'text-slate-500 dark:text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
-                        <span>Resep Tersimpan</span>
+                        <span class="whitespace-nowrap">Resep Tersimpan</span>
                     </a>
                     <button @click="$store.app.openDemo = true" 
                             onclick="window.openTutorial && window.openTutorial()" 
@@ -90,13 +88,13 @@
                 </nav>
 
                 <!-- Desktop User Menu -->
-                <div class="hidden md:flex items-center gap-2.5">
+                <div class="hidden lg:flex items-center gap-2.5">
                     <!-- Dark Mode Toggle Button (Desktop) -->
                     <button @click="$store.app.toggleTheme()" 
                             type="button" 
                             class="cursor-pointer p-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition shadow-2xs flex items-center justify-center" 
                             :title="$store.app.isDark ? 'Beralih ke Mode Terang' : 'Beralih ke Mode Gelap'"
-                            aria-label="Toggle Mode Malam">
+                            :aria-label="$store.app.isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'">
                         <!-- Sun Icon (Active when dark) -->
                         <svg x-show="$store.app.isDark" x-cloak class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -125,14 +123,14 @@
                             {{ substr(auth()->user()->name, 0, 1) }}
                         </div>
                         <div class="text-left">
-                            <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight">{{ auth()->user()->name }}</p>
+                            <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight whitespace-nowrap max-w-[9rem] truncate">{{ auth()->user()->name }}</p>
                             <p class="text-[11px] text-blue-600 dark:text-blue-400 font-medium">{{ auth()->user()->dietary_preferences[0] ?? 'Umum' }}</p>
                         </div>
                     </a>
 
                     <form method="POST" action="{{ route('logout') }}" class="inline">
                         @csrf
-                        <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" title="Keluar">
+                        <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" title="Keluar" aria-label="Keluar dari akun">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                         </button>
                     </form>
@@ -144,7 +142,7 @@
                             type="button" 
                             class="cursor-pointer p-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition shadow-2xs flex items-center justify-center" 
                             :title="$store.app.isDark ? 'Beralih ke Mode Terang' : 'Beralih ke Mode Gelap'"
-                            aria-label="Toggle Mode Malam">
+                            :aria-label="$store.app.isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'">
                         <svg x-show="$store.app.isDark" x-cloak class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
@@ -165,9 +163,9 @@
                 @endauth
 
                 <!-- Mobile Header Buttons -->
-                <div class="md:hidden flex items-center gap-1">
+                <div class="lg:hidden flex items-center gap-1">
                     <!-- Mobile Dark Mode Toggle -->
-                    <button @click="$store.app.toggleTheme()" type="button" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer" :title="$store.app.isDark ? 'Mode Terang' : 'Mode Gelap'" aria-label="Toggle Mode Malam">
+                    <button @click="$store.app.toggleTheme()" type="button" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer" :title="$store.app.isDark ? 'Mode Terang' : 'Mode Gelap'" :aria-label="$store.app.isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'">
                         <svg x-show="$store.app.isDark" x-cloak class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
@@ -175,10 +173,10 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                         </svg>
                     </button>
-                    <button @click="$store.app.openDemo = true" onclick="window.openTutorial && window.openTutorial()" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer" title="Panduan">
+                    <button @click="$store.app.openDemo = true" onclick="window.openTutorial && window.openTutorial()" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer" title="Panduan" aria-label="Buka panduan penggunaan">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </button>
-                    <button @click="$store.app.mobileMenuOpen = ! $store.app.mobileMenuOpen" type="button" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                    <button @click="$store.app.mobileMenuOpen = ! $store.app.mobileMenuOpen" type="button" aria-label="Buka menu navigasi" :aria-expanded="$store.app.mobileMenuOpen" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path x-show="! $store.app.mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
                             <path x-show="$store.app.mobileMenuOpen" x-cloak stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -190,7 +188,7 @@
 
         <!-- Mobile Drawer Menu -->
         @auth
-        <div x-show="$store.app.mobileMenuOpen" x-cloak @click.away="$store.app.mobileMenuOpen = false" class="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 space-y-1 shadow-lg">
+        <div x-show="$store.app.mobileMenuOpen" x-cloak @click.away="$store.app.mobileMenuOpen = false" class="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 space-y-1 shadow-lg">
             <a href="{{ route('dashboard') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold {{ request()->routeIs('dashboard') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300' }}">
                 <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                 <span>Beranda</span>
@@ -312,7 +310,7 @@
          x-show="$store.app.openDemo" 
          x-cloak 
          class="relative z-50" 
-         role="dialog" 
+         role="dialog" aria-labelledby="guide-title"
          aria-modal="true">
         
         <div x-show="$store.app.openDemo" 
@@ -337,28 +335,28 @@
                      class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-200 dark:border-slate-800"
                      @click.stop>
                     
-                    <div class="bg-gradient-to-r from-blue-50/80 via-amber-50/50 to-orange-50/40 dark:from-slate-850 dark:via-slate-800 dark:to-slate-850 px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <img src="{{ asset('images/mascot.png') }}" class="h-9 w-auto">
+                    <div class="bg-gradient-to-r from-blue-50/80 via-amber-50/50 to-orange-50/40 dark:from-slate-850 dark:via-slate-800 dark:to-slate-850 px-4 sm:px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <img src="{{ asset('images/mascot.png') }}" alt="" class="h-8 sm:h-9 w-auto shrink-0">
                             <div>
-                                <h3 class="text-base font-black text-slate-900 dark:text-white tracking-tight">Panduan Penggunaan FoodCycle</h3>
+                                <h3 id="guide-title" class="text-sm sm:text-base font-black leading-snug text-slate-900 dark:text-white tracking-tight">Panduan Penggunaan FoodCycle</h3>
                                 <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Tiga langkah mudah membuat resep terencana</p>
                             </div>
                         </div>
-                        <button type="button" @click="$store.app.openDemo = false" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-white/80 dark:hover:bg-slate-800 transition cursor-pointer">
+                        <button type="button" @click="$store.app.openDemo = false" aria-label="Tutup panduan" class="shrink-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-white/80 dark:hover:bg-slate-800 transition cursor-pointer">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
 
-                    <div class="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                        <span :class="step === 1 ? 'text-blue-700 dark:text-blue-400 bg-blue-100/90 dark:bg-blue-950/80 px-2.5 py-1 rounded-lg font-bold' : ''">1. Pilih Mode</span>
+                    <div class="flex items-center justify-between gap-1 px-3 sm:px-6 py-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-[11px] sm:text-xs font-semibold whitespace-nowrap text-slate-500 dark:text-slate-400">
+                        <span :class="step === 1 ? 'text-blue-700 dark:text-blue-400 bg-blue-100/90 dark:bg-blue-950/80 px-2 sm:px-2.5 py-1 rounded-lg font-bold' : ''">1. Pilih Mode</span>
                         <span class="text-slate-300 dark:text-slate-600">&rarr;</span>
-                        <span :class="step === 2 ? 'text-blue-700 dark:text-blue-400 bg-blue-100/90 dark:bg-blue-950/80 px-2.5 py-1 rounded-lg font-bold' : ''">2. Masukkan Data</span>
+                        <span :class="step === 2 ? 'text-blue-700 dark:text-blue-400 bg-blue-100/90 dark:bg-blue-950/80 px-2 sm:px-2.5 py-1 rounded-lg font-bold' : ''">2. Masukkan Data</span>
                         <span class="text-slate-300 dark:text-slate-600">&rarr;</span>
-                        <span :class="step === 3 ? 'text-blue-700 dark:text-blue-400 bg-blue-100/90 dark:bg-blue-950/80 px-2.5 py-1 rounded-lg font-bold' : ''">3. Hasil Resep</span>
+                        <span :class="step === 3 ? 'text-blue-700 dark:text-blue-400 bg-blue-100/90 dark:bg-blue-950/80 px-2 sm:px-2.5 py-1 rounded-lg font-bold' : ''">3. Hasil Resep</span>
                     </div>
 
-                    <div class="p-6 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <div class="p-4 sm:p-6 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                         <div x-show="step === 1" class="space-y-3">
                             <h4 class="font-bold text-slate-900 dark:text-white">Langkah 1: Tentukan Metode Pembuatan Resep</h4>
                             <p>Pilih salah satu dari tiga metode yang tersedia di halaman utama:</p>
@@ -463,7 +461,7 @@
                                     <p class="text-xs text-slate-500 dark:text-slate-400">Sesuaikan profil untuk personalisasi resep otomatis</p>
                                 </div>
                             </div>
-                            <button type="button" @click="$store.app.showPrefsModal = false" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                            <button type="button" @click="$store.app.showPrefsModal = false" aria-label="Tutup preferensi" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>

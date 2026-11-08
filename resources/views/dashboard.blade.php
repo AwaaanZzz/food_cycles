@@ -91,11 +91,11 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <!-- Mode 1: Bahan & Alat -->
-            <div @click="activeTab = 'FCAI'"
+            <div @click="selectTab('FCAI')" @keydown.enter.prevent="selectTab('FCAI')" @keydown.space.prevent="selectTab('FCAI')" role="button" tabindex="0" :aria-pressed="activeTab === 'FCAI'"
                  :class="activeTab === 'FCAI' 
                     ? 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/30 dark:ring-blue-500/30 bg-blue-50/20 dark:bg-slate-800/80 shadow-sm' 
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 shadow-2xs'"
-                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group">
+                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 <div>
                     <div class="mb-3.5">
                         <div class="w-11 h-11 rounded-xl flex items-center justify-center transition shadow-2xs bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -120,11 +120,11 @@
             </div>
 
             <!-- Mode 2: Sesuai Anggaran -->
-            <div @click="activeTab = 'FCBB'"
+            <div @click="selectTab('FCBB')" @keydown.enter.prevent="selectTab('FCBB')" @keydown.space.prevent="selectTab('FCBB')" role="button" tabindex="0" :aria-pressed="activeTab === 'FCBB'"
                  :class="activeTab === 'FCBB' 
                     ? 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/30 dark:ring-blue-500/30 bg-blue-50/20 dark:bg-slate-800/80 shadow-sm' 
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 shadow-2xs'"
-                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group">
+                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 <div>
                     <div class="mb-3.5">
                         <div class="w-11 h-11 rounded-xl flex items-center justify-center transition shadow-2xs bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -149,11 +149,11 @@
             </div>
 
             <!-- Mode 3: Identifikasi Foto -->
-            <div @click="activeTab = 'FBPB'"
+            <div @click="selectTab('FBPB')" @keydown.enter.prevent="selectTab('FBPB')" @keydown.space.prevent="selectTab('FBPB')" role="button" tabindex="0" :aria-pressed="activeTab === 'FBPB'"
                  :class="activeTab === 'FBPB' 
                     ? 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/30 dark:ring-blue-500/30 bg-blue-50/20 dark:bg-slate-800/80 shadow-sm' 
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 shadow-2xs'"
-                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group">
+                 class="cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 <div>
                     <div class="mb-3.5">
                         <div class="w-11 h-11 rounded-xl flex items-center justify-center transition shadow-2xs bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -180,7 +180,7 @@
     </div>
 
     <!-- Dynamic Form Panel -->
-    <div class="mb-12">
+    <div id="mode-form" class="mb-12 scroll-mt-20">
 
         <!-- FORM 1: Bahan & Alat -->
         <div x-show="activeTab === 'FCAI'" 
@@ -360,11 +360,11 @@
                             <div>
                                 <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">Jumlah Porsi</label>
                                 <div class="flex items-center gap-3">
-                                    <button type="button" @click="if (portionCount > 1) portionCount--" 
+                                    <button type="button" @click="if (portionCount > 1) portionCount--" aria-label="Kurangi porsi"
                                         class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black flex items-center justify-center transition cursor-pointer shadow-2xs">-</button>
-                                    <span class="font-extrabold text-sm text-slate-900 dark:text-white w-16 text-center" x-text="portionCount + ' Porsi'"></span>
+                                    <span class="font-extrabold text-sm text-slate-900 dark:text-white w-16 text-center" x-text="portionCount + ' Porsi'" aria-live="polite"></span>
                                     <input type="hidden" name="servings" :value="portionCount + ' porsi'">
-                                    <button type="button" @click="if (portionCount < 10) portionCount++" 
+                                    <button type="button" @click="if (portionCount < 10) portionCount++" aria-label="Tambah porsi"
                                         class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black flex items-center justify-center transition cursor-pointer shadow-2xs">+</button>
                                 </div>
                             </div>
@@ -533,6 +533,16 @@
             photoPreview: null,
             isGenerating: false,
             loadingTitle: 'Menyiapkan Resep...',
+
+            selectTab(tab) {
+                this.activeTab = tab;
+                // On narrow screens the form sits below the mode cards: scroll it into view
+                if (window.matchMedia('(max-width: 767px)').matches) {
+                    this.$nextTick(() => {
+                        document.getElementById('mode-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
+                }
+            },
 
             addIngredient(name) {
                 if (!this.fcaiIngredients.trim()) {

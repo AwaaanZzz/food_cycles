@@ -247,7 +247,7 @@
                             </button>
                         </div>
                         <input id="current_password" name="current_password" :type="showPasswords ? 'text' : 'password'" required
-                            placeholder="••••••••"
+                            placeholder="Kata sandi saat ini"
                             class="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition bg-slate-50/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800">
                         @error('current_password')
                             <p class="mt-1 text-xs text-rose-600 dark:text-rose-400 font-medium">{{ $message }}</p>
